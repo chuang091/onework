@@ -8,8 +8,6 @@
     "generate": "nuxt generate"
   },
   "dependencies": {
-    "@nuxtjs/axios": "^5.13.6",
-    "axios": "^1.7.2",
     "cesium": "^1.119.0",
     "mapbox-gl": "^3.5.1"
   },
