@@ -1,54 +1,23 @@
 <template>
-  <div class="dual-map-container">
-    <div ref="cesiumContainer" class="map" />
-    <div ref="mapboxContainer" class="map" />
-  </div>
+  <div id="cesiumContainer"></div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useNuxtApp } from '#app';
+<script>
+export default {
+  mounted() {
+    const cesium = this.$cesium;
 
-const cesiumContainer = ref(null);
-const mapboxContainer = ref(null);
-
-const { $cesium, $mapbox } = useNuxtApp();
-
-const initializeCesium = () => {
-  const viewer = new $cesium.Viewer(cesiumContainer.value, {
-    imageryProvider: new $cesium.OpenStreetMapImageryProvider({
-      url: 'https://tile.openstreetmap.org/'
-    }),
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    animation: false,
-    timeline: false,
-    fullscreenButton: false
-  });
+    // 初始化 Cesium Viewer
+    const viewer = new cesium.Viewer('cesiumContainer', {
+      imageryProvider: new cesium.IonImageryProvider()
+    });
+  }
 };
-
-const initializeMapbox = () => {
-  const map = new $mapbox.Map({
-    container: mapboxContainer.value,
-    style: 'mapbox://styles/mapbox/streets-v11'
-  });
-};
-
-onMounted(() => {
-  initializeCesium();
-  initializeMapbox();
-});
 </script>
 
 <style>
-.dual-map-container {
-  display: flex;
-}
-.map {
-  width: 50%;
+#cesiumContainer {
+  width: 100%;
   height: 100vh;
 }
 </style>
