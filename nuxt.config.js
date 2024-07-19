@@ -1,18 +1,19 @@
 export default {
-  // 配置静态资源的目录
+  // 配置靜態資源的目錄
   dir: {
     static: 'static'
   },
 
-  // 插件设置
+  // 插件設置
   plugins: [
-    '~/plugins/cesium.js'
+    '~/plugins/cesium.js',
+    { src: '~/plugins/vuex.js', mode: 'client' }
   ],
 
   // Nuxt 模式配置
   mode: 'universal',
 
-  // 页面头部设置
+  // 頁面頭部設置
   head: {
     title: process.env.npm_package_name || '',
     meta: [
@@ -27,20 +28,19 @@ export default {
 
   // 全局 CSS
   css: [
-    'cesium/Build/Cesium/Widgets/widgets.css'
+    'cesium/Build/Cesium/Widgets/widgets.css',
+    'mapbox-gl/dist/mapbox-gl.css'
   ],
 
-  // 加载指示器设置
+  // 加載指示器設置
   loading: { color: '#fff' },
 
-  // Nuxt.js 模块
+  // Nuxt.js 模塊
   modules: [],
 
-  // 构建配置
+  // 構建配置
   build: {
-    // 你可以在这里扩展 webpack 配置
+    // 你可以在這裡擴展 webpack 配置
     extend(config, ctx) {}
-  },
-
-  compatibilityDate: '2024-07-19'
+  }
 };

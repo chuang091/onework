@@ -1,23 +1,42 @@
 <template>
-  <div id="cesiumContainer"></div>
+  <div id="app">
+    <div class="container">
+      <div class="left">
+        <Cesium />
+      </div>
+      <div class="right">
+        <Mapbox />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-export default {
-  mounted() {
-    const cesium = this.$cesium;
+import Cesium from './components/Cesium.vue';
+import Mapbox from './components/Mapbox.vue';
 
-    // 初始化 Cesium Viewer
-    const viewer = new cesium.Viewer('cesiumContainer', {
-      imageryProvider: new cesium.IonImageryProvider()
-    });
+export default {
+  components: {
+    Cesium,
+    Mapbox
   }
 };
 </script>
 
 <style>
-#cesiumContainer {
+.container {
+  display: flex;
   width: 100%;
   height: 100vh;
+}
+
+.left,
+.right {
+  width: 50%;
+  height: 100%;
+}
+
+.left {
+  border-right: 1px solid #ccc;
 }
 </style>
