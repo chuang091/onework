@@ -18,15 +18,7 @@ const initializeCesium = () => {
   const viewer = new $cesium.Viewer(cesiumContainer.value, {
     imageryProvider: new $cesium.OpenStreetMapImageryProvider({
       url: 'https://tile.openstreetmap.org/'
-    }),
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    animation: false,
-    timeline: false,
-    fullscreenButton: false
+    })
   });
 };
 

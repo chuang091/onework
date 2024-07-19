@@ -1,7 +1,6 @@
 export default defineNuxtConfig({
   ssr: true,
   target: 'static',
-
   head: {
     title: '我的 Nuxt 应用',
     meta: [
@@ -22,6 +21,25 @@ export default defineNuxtConfig({
   buildModules: [],
 
   modules: [],
+  nitro: {
+    publicAssets: [ {
+      //Nuxt will copy the files here and serve them publicly
+      baseURL: '_nuxt/Cesium/Assets',
+      dir: '../node_modules/cesium/Build/Cesium/Assets'
+    },
+    {
+      baseURL: '_nuxt/Cesium/Workers',
+      dir: '../node_modules/cesium/Build/Cesium/Workers'
+    },
+    {
+      baseURL: '_nuxt/Cesium/ThirdParty',
+      dir: '../node_modules/cesium/Build/Cesium/ThirdParty'
+    },
+    {
+      baseURL: '_nuxt/Cesium/Widgets',
+      dir: '../node_modules/cesium/Build/Cesium/Widgets'
+    },
+  ]},
 
   compatibilityDate: '2024-07-18'
 });
