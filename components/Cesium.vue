@@ -7,43 +7,72 @@ export default {
   mounted() {
     const cesium = this.$cesium;
     const viewer = new cesium.Viewer('cesiumContainer', {
-      imageryProvider: new cesium.IonImageryProvider()
+      imageryProvider: new cesium.IonImageryProvider(),
+      geocoder: false,
+      sceneMode: cesium.SceneMode.COLUMBUS_VIEW, // 設置為 Columbus View 模式
+      mapProjection: new cesium.WebMercatorProjection() // 使用 Web Mercator 投影
     });
 
-    viewer.camera.setView({
-      destination: cesium.Cartesian3.fromDegrees(121.5654, 25.0330, 10000),
-      orientation: {
-        heading: cesium.Math.toRadians(0),
-        pitch: cesium.Math.toRadians(-45),
-        roll: 0
-      }
-    });
+    // 禁用其他模式的按鈕
+    viewer.sceneModePicker.viewModel.duration = 0;
+    viewer.sceneModePicker.viewModel.columbusViewMode = true;
+    viewer.sceneModePicker.viewModel.sceneMode = cesium.SceneMode.COLUMBUS_VIEW;
 
-    viewer.camera.moveEnd.addEventListener(() => {
+    let isUpdatingFromCesium = false;
+    let isUpdatingFromMapbox = false;
+
+    function convertRangeToZoom(range) {
+      let zoom = Math.round(Math.log(35200000 / range) / Math.log(2));
+      if (zoom < 0) zoom = 0;
+      else if (zoom > 19) zoom = 19;
+      return zoom;
+    }
+
+    function convertZoomToRange(zoom) {
+      let range = 35200000 / Math.pow(2, zoom);
+      if (range < 300) range = 300;
+      return range;
+    }
+
+    function convertCesiumPitchToMapbox(pitch) {
+      return pitch;
+    }
+
+    function convertMapboxPitchToCesium(pitch) {
+      return pitch - 90;
+    }
+
+    viewer.camera.changed.addEventListener(() => {
+      if (isUpdatingFromMapbox) return;
+      isUpdatingFromCesium = true;
       const center = viewer.camera.positionCartographic;
       const newCoordinates = {
         longitude: cesium.Math.toDegrees(center.longitude),
         latitude: cesium.Math.toDegrees(center.latitude),
-        zoom: viewer.camera.positionCartographic.height,
-        pitch: cesium.Math.toDegrees(viewer.camera.pitch),
+        zoom: convertRangeToZoom(viewer.camera.positionCartographic.height),
+        pitch: convertCesiumPitchToMapbox(Math.abs(cesium.Math.toDegrees(viewer.camera.pitch))),
         bearing: cesium.Math.toDegrees(viewer.camera.heading)
       };
-      console.log('Cesium camera move end', newCoordinates);
+      console.log('Cesium camera changed', newCoordinates);
       this.$store.dispatch('updateCoordinates', newCoordinates);
+      isUpdatingFromCesium = false;
     });
 
     this.$store.watch(
       state => state.coordinates,
       coordinates => {
+        if (isUpdatingFromCesium) return;
+        isUpdatingFromMapbox = true;
         console.log('Cesium store watch', coordinates);
         viewer.camera.setView({
-          destination: cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, coordinates.zoom),
+          destination: cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, convertZoomToRange(coordinates.zoom)),
           orientation: {
             heading: cesium.Math.toRadians(coordinates.bearing),
-            pitch: cesium.Math.toRadians(coordinates.pitch),
+            pitch: cesium.Math.toRadians(convertMapboxPitchToCesium(coordinates.pitch)),
             roll: 0
           }
         });
+        isUpdatingFromMapbox = false;
       },
       { immediate: true }
     );
