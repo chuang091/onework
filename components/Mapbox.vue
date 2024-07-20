@@ -13,7 +13,7 @@ export default {
       style: 'mapbox://styles/mapbox/streets-v11',
       center: [121.5654, 25.0330], // 台北的經緯度
       zoom: 12, // 初始縮放級別
-      pitch: 45, // 初始視角的傾斜度
+      pitch: 0, // 初始視角的傾斜度
       bearing: 0 // 初始方向角
     });
 
@@ -37,7 +37,7 @@ export default {
         console.log('Mapbox move end', newCoordinates);
         this.$store.dispatch('updateCoordinatesFromMapbox', newCoordinates);
         isUpdatingFromMapbox = false;
-      }, 5); // 5 毫秒的延遲
+      }, 500); // 5 毫秒的延遲
     });
 
     this.$store.watch(

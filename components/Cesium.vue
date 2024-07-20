@@ -36,7 +36,7 @@ export default {
     }
 
     function convertCesiumPitchToMapbox(pitch) {
-      return pitch;
+      return 90 - pitch;
     }
 
     function convertMapboxPitchToCesium(pitch) {
@@ -59,7 +59,7 @@ export default {
         console.log('Cesium camera move end', newCoordinates);
         this.$store.dispatch('updateCoordinatesFromCesium', newCoordinates);
         isUpdatingFromCesium = false;
-      }, 5); // 5 毫秒的延遲
+      }, 500); // 5 毫秒的延遲
     });
 
     this.$store.watch(
