@@ -4,6 +4,7 @@ const store = createStore({
   state() {
     return {
       coordinates: {
+        source: null,
         longitude: 121.5654,
         latitude: 25.0330,
         zoom: 12,
@@ -13,14 +14,14 @@ const store = createStore({
     };
   },
   mutations: {
-    setCoordinates(state, coordinates) {
-      console.log('setCoordinates', coordinates);
-      state.coordinates = coordinates;
+    setCoordinates(state, payload) {
+      console.log('setCoordinates', payload);
+      state.coordinates = payload;
     }
   },
   actions: {
-    updateCoordinates({ commit, state }, coordinates) {
-      console.log('updateCoordinates', coordinates);
+    updateCoordinatesFromMapbox({ commit, state }, coordinates) {
+      console.log('updateCoordinatesFromMapbox', coordinates);
       if (
         state.coordinates.longitude !== coordinates.longitude ||
         state.coordinates.latitude !== coordinates.latitude ||
@@ -28,7 +29,19 @@ const store = createStore({
         state.coordinates.pitch !== coordinates.pitch ||
         state.coordinates.bearing !== coordinates.bearing
       ) {
-        commit('setCoordinates', coordinates);
+        commit('setCoordinates', { source: 'mapbox', ...coordinates });
+      }
+    },
+    updateCoordinatesFromCesium({ commit, state }, coordinates) {
+      console.log('updateCoordinatesFromCesium', coordinates);
+      if (
+        state.coordinates.longitude !== coordinates.longitude ||
+        state.coordinates.latitude !== coordinates.latitude ||
+        state.coordinates.zoom !== coordinates.zoom ||
+        state.coordinates.pitch !== coordinates.pitch ||
+        state.coordinates.bearing !== coordinates.bearing
+      ) {
+        commit('setCoordinates', { source: 'cesium', ...coordinates });
       }
     }
   }

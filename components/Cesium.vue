@@ -20,6 +20,7 @@ export default {
 
     let isUpdatingFromCesium = false;
     let isUpdatingFromMapbox = false;
+    let moveTimeout = null;
 
     function convertRangeToZoom(range) {
       let zoom = Math.round(Math.log(35200000 / range) / Math.log(2));
@@ -44,27 +45,30 @@ export default {
 
     viewer.camera.changed.addEventListener(() => {
       if (isUpdatingFromMapbox) return;
-      isUpdatingFromCesium = true;
-      const center = viewer.camera.positionCartographic;
-      const newCoordinates = {
-        longitude: cesium.Math.toDegrees(center.longitude),
-        latitude: cesium.Math.toDegrees(center.latitude),
-        zoom: convertRangeToZoom(viewer.camera.positionCartographic.height),
-        pitch: convertCesiumPitchToMapbox(Math.abs(cesium.Math.toDegrees(viewer.camera.pitch))),
-        bearing: cesium.Math.toDegrees(viewer.camera.heading)
-      };
-      console.log('Cesium camera changed', newCoordinates);
-      this.$store.dispatch('updateCoordinates', newCoordinates);
-      isUpdatingFromCesium = false;
+      if (moveTimeout) clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(() => {
+        isUpdatingFromCesium = true;
+        const center = viewer.camera.positionCartographic;
+        const newCoordinates = {
+          longitude: cesium.Math.toDegrees(center.longitude),
+          latitude: cesium.Math.toDegrees(center.latitude),
+          zoom: convertRangeToZoom(viewer.camera.positionCartographic.height),
+          pitch: convertCesiumPitchToMapbox(Math.abs(cesium.Math.toDegrees(viewer.camera.pitch))),
+          bearing: cesium.Math.toDegrees(viewer.camera.heading)
+        };
+        console.log('Cesium camera move end', newCoordinates);
+        this.$store.dispatch('updateCoordinatesFromCesium', newCoordinates);
+        isUpdatingFromCesium = false;
+      }, 5); // 5 毫秒的延遲
     });
 
     this.$store.watch(
       state => state.coordinates,
       coordinates => {
-        if (isUpdatingFromCesium) return;
+        if (coordinates.source === 'cesium' || isUpdatingFromCesium) return;
         isUpdatingFromMapbox = true;
         console.log('Cesium store watch', coordinates);
-        viewer.camera.setView({
+        viewer.camera.flyTo({
           destination: cesium.Cartesian3.fromDegrees(coordinates.longitude, coordinates.latitude, convertZoomToRange(coordinates.zoom)),
           orientation: {
             heading: cesium.Math.toRadians(coordinates.bearing),

@@ -19,48 +19,31 @@ export default {
 
     let isUpdatingFromMapbox = false;
     let isUpdatingFromCesium = false;
-
-    function convertRangeToZoom(range) {
-      let zoom = Math.round(Math.log(35200000 / range) / Math.log(2));
-      if (zoom < 0) zoom = 0;
-      else if (zoom > 19) zoom = 19;
-      return zoom;
-    }
-
-    function convertZoomToRange(zoom) {
-      let range = 35200000 / Math.pow(2, zoom);
-      if (range < 300) range = 300;
-      return range;
-    }
-
-    function convertCesiumPitchToMapbox(pitch) {
-      return pitch;
-    }
-
-    function convertMapboxPitchToCesium(pitch) {
-      return pitch - 90;
-    }
+    let moveTimeout = null;
 
     map.on('move', () => {
       if (isUpdatingFromCesium) return;
-      isUpdatingFromMapbox = true;
-      const center = map.getCenter();
-      const newCoordinates = {
-        longitude: center.lng,
-        latitude: center.lat,
-        zoom: map.getZoom(),
-        pitch: map.getPitch(),
-        bearing: map.getBearing()
-      };
-      console.log('Mapbox move', newCoordinates);
-      this.$store.dispatch('updateCoordinates', newCoordinates);
-      isUpdatingFromMapbox = false;
+      if (moveTimeout) clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(() => {
+        isUpdatingFromMapbox = true;
+        const center = map.getCenter();
+        const newCoordinates = {
+          longitude: center.lng,
+          latitude: center.lat,
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing()
+        };
+        console.log('Mapbox move end', newCoordinates);
+        this.$store.dispatch('updateCoordinatesFromMapbox', newCoordinates);
+        isUpdatingFromMapbox = false;
+      }, 5); // 5 毫秒的延遲
     });
 
     this.$store.watch(
       state => state.coordinates,
       coordinates => {
-        if (isUpdatingFromMapbox) return;
+        if (coordinates.source === 'mapbox' || isUpdatingFromMapbox) return;
         isUpdatingFromCesium = true;
         console.log('Mapbox store watch', coordinates);
         map.flyTo({
