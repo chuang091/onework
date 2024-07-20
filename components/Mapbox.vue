@@ -4,7 +4,8 @@
 
 <script>
 import mapboxgl from 'mapbox-gl';
-
+import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
+import "@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css";
 export default {
   mounted() {
     mapboxgl.accessToken = 'pk.eyJ1IjoiY2h1YW5nMDkxMSIsImEiOiJjbHlxcWgydTUwaTluMmpwbWVybTJ3M3hyIn0.NrsijaI9kUByawxKd_FERA';
@@ -20,6 +21,19 @@ export default {
     let isUpdatingFromMapbox = false;
     let isUpdatingFromCesium = false;
     let moveTimeout = null;
+
+    const directions = new MapboxDirections({
+      accessToken: mapboxgl.accessToken,
+      unit: 'metric',
+      profile: 'mapbox/driving', // or 'mapbox/cycling', 'mapbox/walking'
+      interactive: false
+    });
+
+    map.addControl(directions, 'top-left');
+
+    // 設置一個初始路徑
+    directions.setOrigin([121.5654, 25.0330]); // 台北
+    directions.setDestination([121.4737, 31.2304]); // 上海
 
     map.on('move', () => {
       if (isUpdatingFromCesium) return;
@@ -37,7 +51,7 @@ export default {
         console.log('Mapbox move end', newCoordinates);
         this.$store.dispatch('updateCoordinatesFromMapbox', newCoordinates);
         isUpdatingFromMapbox = false;
-      }, 500); // 5 毫秒的延遲
+      }, 5); // 5 毫秒的延遲
     });
 
     this.$store.watch(
@@ -62,6 +76,8 @@ export default {
 </script>
 
 <style>
+
+
 #mapboxContainer {
   width: 100%;
   height: 100vh;
