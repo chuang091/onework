@@ -10,13 +10,17 @@ const store = createStore({
         zoom: 16,
         pitch: 0,
         bearing: 0
-      }
+      },
+      zoomToStep: null
     };
   },
   mutations: {
     setCoordinates(state, payload) {
       console.log('setCoordinates', payload);
       state.coordinates = payload;
+    },
+    setZoomToStep(state, step) {
+      state.zoomToStep = step;
     }
   },
   actions: {
@@ -43,6 +47,9 @@ const store = createStore({
       ) {
         commit('setCoordinates', { source: 'cesium', ...coordinates });
       }
+    },
+    updateZoomToStep({ commit }, step) {
+      commit('setZoomToStep', step);
     }
   }
 });

@@ -15,7 +15,14 @@
       </form>
       <div class="results" v-if="routeResult">
         <h3>路徑結果</h3>
-        <pre>{{ routeResult }}</pre>
+        <ul v-if="routeResult.legs && routeResult.legs.length > 0 && routeResult.legs[0].steps && routeResult.legs[0].steps.length > 0">
+          <li v-for="(step, index) in routeResult.legs[0].steps" :key="index" @mouseover="highlightStep(step)" @mouseout="resetHighlight" @click="zoomToStep(step)">
+            <strong>{{ index + 1 }}. </strong>{{ step.maneuver.instruction }}
+            <span class="distance">距離：{{ (step.distance / 1000).toFixed(2) }} 公里</span>
+          </li>
+        </ul>
+        <h3>總距離: {{ (routeResult.distance / 1000).toFixed(2) }} 公里</h3>
+        <h3>總時間: {{ (routeResult.duration / 60).toFixed(2) }} 分鐘</h3>
       </div>
     </div>
   </transition>
@@ -25,6 +32,8 @@
 import mapboxgl from 'mapbox-gl';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+import { mapActions } from 'vuex';
+
 export default {
   data() {
     return {
@@ -38,6 +47,7 @@ export default {
     this.initializeGeocoders();
   },
   methods: {
+    ...mapActions(['updateZoomToStep']),
     initializeGeocoders() {
       this.$nextTick(() => {
         const geocoderA = new MapboxGeocoder({
@@ -72,11 +82,15 @@ export default {
     },
     async handleSubmit() {
       try {
-        const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${this.pointA};${this.pointC}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+        const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/cycling/${this.pointA};${this.pointC}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
         const response = await fetch(directionsServiceUrl);
         const data = await response.json();
-        this.routeResult = data.routes[0];
-        this.$emit('route-found', data.routes[0]);
+        if (data.routes && data.routes.length > 0) {
+          this.routeResult = data.routes[0];
+          this.$emit('route-found', data.routes[0]);
+        } else {
+          console.error('No routes found');
+        }
       } catch (error) {
         console.error('Error fetching directions:', error);
       }
@@ -87,6 +101,15 @@ export default {
         this.initializeGeocoders();
       }
       this.$emit('toggle', this.isVisible);
+    },
+    highlightStep(step) {
+      this.$emit('highlight-step', step);
+    },
+    resetHighlight() {
+      this.$emit('reset-highlight');
+    },
+    zoomToStep(step) {
+      this.updateZoomToStep(step);
     }
   }
 };
@@ -122,5 +145,21 @@ export default {
 }
 .results {
   margin-top: 20px;
+}
+.results ul {
+  list-style: none;
+  padding: 0;
+}
+.results li {
+  padding: 10px;
+  cursor: pointer;
+}
+.results li:hover {
+  background-color: #f0f0f0;
+}
+.distance {
+  display: block;
+  font-size: 0.8em;
+  color: #555;
 }
 </style>

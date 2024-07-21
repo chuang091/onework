@@ -9,7 +9,7 @@
         <Mapbox ref="mapbox" />
       </div>
     </div>
-    <SlidingPanel ref="slidingPanel" @toggle="handlePanelToggle" @route-found="handleRouteFound" />
+    <SlidingPanel ref="slidingPanel" @toggle="handlePanelToggle" @route-found="handleRouteFound" @highlight-step="handleHighlightStep" @reset-highlight="handleResetHighlight" />
   </div>
 </template>
 
@@ -38,6 +38,12 @@ export default {
     },
     handleRouteFound(route) {
       this.$refs.mapbox.drawRoute(route);
+    },
+    handleHighlightStep(step) {
+      this.$refs.mapbox.highlightStep(step);
+    },
+    handleResetHighlight() {
+      this.$refs.mapbox.resetHighlight();
     }
   }
 };

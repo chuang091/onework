@@ -4,24 +4,36 @@
 
 <script>
 import mapboxgl from 'mapbox-gl';
+import { mapState } from 'vuex';
 
 export default {
   data() {
     return {
       map: null,
-      markers: [], // 用來儲存所有的標記
-      routeLayer: null // 用來儲存路徑圖層
+      markers: [],
+      routeLayer: null,
+      highlightedLayer: null
     };
+  },
+  computed: {
+    ...mapState(['zoomToStep'])
+  },
+  watch: {
+    zoomToStep(newStep) {
+      if (newStep) {
+        this.zoomToStepMethod(newStep);
+      }
+    }
   },
   mounted() {
     mapboxgl.accessToken = 'pk.eyJ1IjoiY2h1YW5nMDkxMSIsImEiOiJjbHlxcWgydTUwaTluMmpwbWVybTJ3M3hyIn0.NrsijaI9kUByawxKd_FERA';
     this.map = new mapboxgl.Map({
       container: 'mapboxContainer',
       style: 'mapbox://styles/mapbox/streets-v11',
-      center: [121.5654, 25.0330], // 台北的經緯度
-      zoom: 16, // 初始縮放級別
-      pitch: 0, // 初始視角的傾斜度
-      bearing: 0 // 初始方向角
+      center: [121.5654, 25.0330],
+      zoom: 16,
+      pitch: 0,
+      bearing: 0
     });
 
     let isUpdatingFromMapbox = false;
@@ -47,8 +59,10 @@ export default {
         };
         console.log('Mapbox move end', newCoordinates);
         this.$store.dispatch('updateCoordinatesFromMapbox', newCoordinates);
-        isUpdatingFromMapbox = false;
-      }, 1000); // 1000 毫秒的延遲
+        setTimeout(() => {
+          isUpdatingFromMapbox = false;
+        }, 1000);
+      }, 500);
     });
 
     this.$store.watch(
@@ -62,14 +76,15 @@ export default {
           zoom: coordinates.zoom,
           pitch: coordinates.pitch,
           bearing: coordinates.bearing,
-          essential: true // 確保動畫在同步時使用
+          essential: true
         });
-        isUpdatingFromCesium = false;
+        setTimeout(() => {
+          isUpdatingFromCesium = false;
+        }, 1000);
       },
       { immediate: true }
     );
 
-    // 初始化 YouBike 資料加載
     this.loadVisibleYouBikeStations();
   },
   methods: {
@@ -79,7 +94,6 @@ export default {
         const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
         const data = await response.json();
         
-        // 移除之前的標記
         this.markers.forEach(marker => marker.remove());
         this.markers = [];
 
@@ -91,11 +105,10 @@ export default {
             return;
           }
 
-          // 檢查站點是否在目前地圖範圍內
           if (bounds.contains([lon, lat])) {
             const marker = new mapboxgl.Marker()
               .setLngLat([lon, lat])
-              .setPopup(new mapboxgl.Popup({ offset: 25 }) // add popups
+              .setPopup(new mapboxgl.Popup({ offset: 25 })
                 .setHTML(`<h3>${station.sna}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
               .addTo(this.map);
 
@@ -108,8 +121,12 @@ export default {
     },
     drawRoute(route) {
       if (this.routeLayer) {
-        this.map.removeLayer(this.routeLayer);
-        this.map.removeSource('route');
+        if (this.map.getLayer('route')) {
+          this.map.removeLayer('route');
+        }
+        if (this.map.getSource('route')) {
+          this.map.removeSource('route');
+        }
       }
 
       this.map.addSource('route', {
@@ -134,6 +151,81 @@ export default {
           'line-opacity': 0.75
         }
       });
+
+      const bounds = new mapboxgl.LngLatBounds();
+      route.geometry.coordinates.forEach(coord => {
+        bounds.extend(coord);
+      });
+      this.map.fitBounds(bounds, { padding: 50 });
+
+      this.map.on('mouseenter', 'route', (e) => {
+        this.map.getCanvas().style.cursor = 'pointer';
+      });
+
+      this.map.on('mouseleave', 'route', () => {
+        this.map.getCanvas().style.cursor = '';
+      });
+
+      this.map.on('click', 'route', (e) => {
+        const coordinates = e.features[0].geometry.coordinates;
+        const bounds = new mapboxgl.LngLatBounds();
+        coordinates.forEach(coord => {
+          bounds.extend(coord);
+        });
+        this.map.fitBounds(bounds, {
+          padding: 50
+        });
+      });
+    },
+    highlightStep(step) {
+      if (this.highlightedLayer) {
+        if (this.map.getLayer('highlighted-step')) {
+          this.map.removeLayer('highlighted-step');
+        }
+        if (this.map.getSource('highlighted-step')) {
+          this.map.removeSource('highlighted-step');
+        }
+      }
+
+      this.map.addSource('highlighted-step', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: step.geometry
+        }
+      });
+
+      this.highlightedLayer = this.map.addLayer({
+        id: 'highlighted-step',
+        type: 'line',
+        source: 'highlighted-step',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#ff0000',
+          'line-width': 5,
+          'line-opacity': 0.75
+        }
+      });
+    },
+    resetHighlight() {
+      if (this.highlightedLayer) {
+        if (this.map.getLayer('highlighted-step')) {
+          this.map.removeLayer('highlighted-step');
+        }
+        if (this.map.getSource('highlighted-step')) {
+          this.map.removeSource('highlighted-step');
+        }
+      }
+    },
+    zoomToStepMethod(step) {
+      const bounds = new mapboxgl.LngLatBounds();
+      step.geometry.coordinates.forEach(coord => {
+        bounds.extend(coord);
+      });
+      this.map.fitBounds(bounds, { padding: 50 });
     }
   }
 };

@@ -42,5 +42,7 @@ export default {
   build: {
     // 你可以在這裡擴展 webpack 配置
     extend(config, ctx) {}
-  }
+  },
+
+  compatibilityDate: '2024-07-21'
 };
