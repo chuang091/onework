@@ -58,8 +58,10 @@ export default {
         };
         console.log('Cesium camera move end', newCoordinates);
         this.$store.dispatch('updateCoordinatesFromCesium', newCoordinates);
-        isUpdatingFromCesium = false;
-      }, 500); // 5 毫秒的延遲
+        setTimeout(() => {
+          isUpdatingFromCesium = false;
+        }, 1000); // 1秒後清除標誌
+      }, 500); // 500 毫秒的延遲
     });
 
     this.$store.watch(
@@ -76,7 +78,9 @@ export default {
             roll: 0
           }
         });
-        isUpdatingFromMapbox = false;
+        setTimeout(() => {
+          isUpdatingFromMapbox = false;
+        }, 1000); // 1秒後清除標誌
       },
       { immediate: true }
     );
