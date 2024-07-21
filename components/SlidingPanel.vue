@@ -46,7 +46,9 @@ export default {
       pointA: '',
       pointC: '',
       youBikeStations: [],
-      routeResult: null
+      routeResult: null,
+      youBikeStart: '',
+      youBikeEnd: ''
     };
   },
   mounted() {
@@ -98,10 +100,16 @@ export default {
     },
     async handleSubmit() {
       try {
-        const walkToBike = await this.getWalkingRoute(this.pointA, this.findNearestStation(this.pointA, 'rent'));
-        const bikeRide = await this.getCyclingRoute(this.findNearestStation(this.pointA, 'rent'), this.findNearestStation(this.pointC, 'return'));
-        const walkToEnd = await this.getWalkingRoute(this.findNearestStation(this.pointC, 'return'), this.pointC);
+        const nearestRentStation = this.findNearestStation(this.pointA, 'rent');
+        const nearestReturnStation = this.findNearestStation(this.pointC, 'return');
 
+        const walkToBike = await this.getWalkingRoute(this.pointA, `${nearestRentStation.longitude},${nearestRentStation.latitude}`);
+        const bikeRide = await this.getCyclingRoute(`${nearestRentStation.longitude},${nearestRentStation.latitude}`, `${nearestReturnStation.longitude},${nearestReturnStation.latitude}`);
+        const walkToEnd = await this.getWalkingRoute(`${nearestReturnStation.longitude},${nearestReturnStation.latitude}`, this.pointC);
+
+        this.youBikeStart = nearestRentStation.sna.replace('YouBike2.0_', '');
+        this.youBikeEnd = nearestReturnStation.sna.replace('YouBike2.0_', '');
+        
         this.routeResult = {
           distance: walkToBike.distance + bikeRide.distance + walkToEnd.distance,
           duration: walkToBike.duration + bikeRide.duration + walkToEnd.duration,
@@ -136,12 +144,12 @@ export default {
         const distance = Math.sqrt(Math.pow(lon - stationLon, 2) + Math.pow(lat - stationLat, 2));
 
         if (type === 'rent' && station.available_rent_bikes > 0 && distance < minDistance) {
-          nearestStation = `${stationLon},${stationLat}`;
+          nearestStation = station;
           minDistance = distance;
         }
 
         if (type === 'return' && station.available_return_bikes > 0 && distance < minDistance) {
-          nearestStation = `${stationLon},${stationLat}`;
+          nearestStation = station;
           minDistance = distance;
         }
       });
@@ -167,11 +175,11 @@ export default {
     getLegDescription(index) {
       switch (index) {
         case 0:
-          return '徒步至最近可借 YouBike 站點';
+          return `徒步至最近可借 YouBike 站點：${this.youBikeStart}`;
         case 1:
-          return '騎行至離終點最近可還 YouBike 站點';
+          return `從 ${this.youBikeStart} 騎行至離終點最近可還 YouBike 站點：${this.youBikeEnd}`;
         case 2:
-          return '徒步至終點';
+          return `從 ${this.youBikeEnd} 徒步至終點`;
         default:
           return `第 ${index + 1} 段`;
       }
