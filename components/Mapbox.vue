@@ -15,21 +15,17 @@ export default {
       highlightedLayer: null,
       startMarker: null,
       endMarker: null,
-      youBikeMarkers: []
+      youBikeMarkers: [],
+      osmLayer: null
     };
   },
   computed: {
-    ...mapState(['zoomToStep', 'route'])
+    ...mapState(['zoomToStep'])
   },
   watch: {
     zoomToStep(newStep) {
       if (newStep) {
         this.zoomToStepMethod(newStep);
-      }
-    },
-    route(newRoute) {
-      if (newRoute) {
-        this.drawRoute(newRoute);
       }
     }
   },
@@ -40,8 +36,29 @@ export default {
       style: 'mapbox://styles/mapbox/streets-v11',
       center: [121.5654, 25.0330],
       zoom: 16,
-      pitch: 0,
-      bearing: 0
+      pitch: 45,
+      bearing: -17.6,
+      antialias: true
+    });
+
+    this.map.on('load', () => {
+      this.map.addLayer({
+        id: '3d-buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 15,
+        paint: {
+          'fill-extrusion-color': '#aaa',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'min_height'],
+          'fill-extrusion-opacity': 0.6
+        }
+      });
+
+      this.loadVisibleYouBikeStations();
+      this.loadVisibleOSMData();
     });
 
     let isUpdatingFromMapbox = false;
@@ -50,6 +67,7 @@ export default {
 
     this.map.on('moveend', () => {
       this.loadVisibleYouBikeStations();
+      this.loadVisibleOSMData();
     });
 
     this.map.on('move', () => {
@@ -92,8 +110,6 @@ export default {
       },
       { immediate: true }
     );
-
-    this.loadVisibleYouBikeStations();
   },
   methods: {
     async loadVisibleYouBikeStations() {
@@ -101,7 +117,7 @@ export default {
       try {
         const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
         const data = await response.json();
-
+        
         this.youBikeMarkers.forEach(marker => marker.remove());
         this.youBikeMarkers = [];
 
@@ -127,6 +143,62 @@ export default {
         console.error('Error fetching YouBike data:', error);
       }
     },
+    async loadVisibleOSMData() {
+  const bounds = this.map.getBounds();
+  try {
+    const response = await fetch('/osm-data.geojson'); // 使用相对路径从 static 文件夹加载资源
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    const data = await response.json();
+
+    if (this.map.getLayer('osm-data')) {
+      this.map.removeLayer('osm-data');
+    }
+    if (this.map.getSource('osm-data')) {
+      this.map.removeSource('osm-data');
+    }
+
+    const visibleFeatures = {
+      type: 'FeatureCollection',
+      features: data.features.filter(feature => {
+        if (feature.geometry.type === 'Polygon') {
+          return feature.geometry.coordinates.some(polygon => 
+            polygon.some(coord => bounds.contains(coord))
+          );
+        } else if (feature.geometry.type === 'Point') {
+          const [lon, lat] = feature.geometry.coordinates;
+          return bounds.contains([lon, lat]);
+        }
+        return false;
+      })
+    };
+
+    this.map.addSource('osm-data', {
+      type: 'geojson',
+      data: visibleFeatures
+    });
+
+    this.osmLayer = this.map.addLayer({
+      id: 'osm-data',
+      type: 'fill-extrusion', // 使用填充挤出类型
+      source: 'osm-data',
+      paint: {
+        'fill-extrusion-color': '#FF5733',
+        'fill-extrusion-height': [
+          'interpolate', ['linear'], ['get', 'building:levels'], 
+          1, 20, 
+          ['*', ['get', 'building:levels'], 3]
+        ],
+        'fill-extrusion-base': 0,
+        'fill-extrusion-opacity': 0.6
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching OSM data:', error);
+  }
+}
+,
     drawRoute(route) {
       if (!route || !route.legs) {
         console.error('Invalid route data:', route);

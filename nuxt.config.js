@@ -43,6 +43,9 @@ export default {
     // 你可以在這裡擴展 webpack 配置
     extend(config, ctx) {}
   },
+  publicRuntimeConfig: {
+    baseURL: process.env.BASE_URL || 'http://localhost:3000'
+  },
 
   compatibilityDate: '2024-07-21'
 };
