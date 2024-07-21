@@ -4,11 +4,11 @@
       <h2>路徑規劃</h2>
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label for="pointA">起點 (Point A)</label>
+          <label for="pointA">起點</label>
           <div id="geocoderA" class="geocoder-container"></div>
         </div>
         <div class="form-group">
-          <label for="pointC">終點 (Point C)</label>
+          <label for="pointC">終點</label>
           <div id="geocoderC" class="geocoder-container"></div>
         </div>
         <button type="submit">提交</button>
@@ -19,10 +19,10 @@
           <li v-for="(leg, index) in routeResult.legs" :key="index">
             <strong>{{ getLegDescription(index) }}: </strong>
             <ul>
-                <li v-for="(step, stepIndex) in leg.legs[0].steps" :key="stepIndex" @mouseover="highlightStep(step)" @mouseout="resetHighlight" @click="zoomToStep(step)">
+              <li v-for="(step, stepIndex) in leg.legs[0].steps" :key="stepIndex" @mouseover="highlightStep(step)" @mouseout="resetHighlight" @click="zoomToStep(step)">
                 {{ step.maneuver.instruction }}
                 <span class="distance">距離：{{ (step.distance / 1000).toFixed(2) }} 公里</span>
-                </li>
+              </li>
             </ul>
           </li>
         </ul>
@@ -54,7 +54,7 @@ export default {
     this.fetchYouBikeData();
   },
   methods: {
-    ...mapActions(['updateZoomToStep']),
+    ...mapActions(['updateRoute']),
     initializeGeocoders() {
       this.$nextTick(() => {
         const geocoderA = new MapboxGeocoder({
@@ -108,7 +108,7 @@ export default {
           legs: [walkToBike, bikeRide, walkToEnd]
         };
 
-        this.$emit('route-found', this.routeResult);
+        this.updateRoute(this.routeResult);
       } catch (error) {
         console.error('Error fetching directions:', error);
       }
@@ -162,7 +162,7 @@ export default {
       this.$emit('reset-highlight');
     },
     zoomToStep(step) {
-      this.updateZoomToStep(step);
+      this.$store.dispatch('updateZoomToStep', step);
     },
     getLegDescription(index) {
       switch (index) {
@@ -226,5 +226,8 @@ export default {
   display: block;
   font-size: 0.8em;
   color: #555;
+}
+.mapboxgl-ctrl-geocoder .suggestions{
+  position: relative;
 }
 </style>

@@ -11,20 +11,25 @@ export default {
     return {
       map: null,
       markers: [],
-      routeLayers: [], // 用來儲存所有的路徑圖層
+      routeLayers: [],
       highlightedLayer: null,
       startMarker: null,
       endMarker: null,
-      youBikeMarkers: [] // 用來儲存所有的 YouBike 站點標記
+      youBikeMarkers: []
     };
   },
   computed: {
-    ...mapState(['zoomToStep'])
+    ...mapState(['zoomToStep', 'route'])
   },
   watch: {
     zoomToStep(newStep) {
       if (newStep) {
         this.zoomToStepMethod(newStep);
+      }
+    },
+    route(newRoute) {
+      if (newRoute) {
+        this.drawRoute(newRoute);
       }
     }
   },
@@ -96,8 +101,7 @@ export default {
       try {
         const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
         const data = await response.json();
-        
-        // 移除之前的標記
+
         this.youBikeMarkers.forEach(marker => marker.remove());
         this.youBikeMarkers = [];
 
@@ -129,7 +133,6 @@ export default {
         return;
       }
 
-      // 移除之前的路徑圖層
       this.routeLayers.forEach(layer => {
         if (this.map.getLayer(layer)) {
           this.map.removeLayer(layer);
@@ -140,10 +143,9 @@ export default {
       });
       this.routeLayers = [];
 
-      // 繪製每段路徑
       route.legs.forEach((leg, index) => {
         const layerId = `route-leg-${index}`;
-        const color = leg.weight_name === 'pedestrian' ? '#00ff00' : '#3887be'; // 綠色用於步行，藍色用於騎行
+        const color = leg.weight_name === 'pedestrian' ? '#00ff00' : '#3887be';
         this.map.addSource(layerId, {
           type: 'geojson',
           data: {
@@ -178,7 +180,6 @@ export default {
       });
       this.map.fitBounds(bounds, { padding: 50 });
 
-      // 標記起點和終點
       const start = route.legs[0].geometry.coordinates[0];
       const end = route.legs[route.legs.length - 1].geometry.coordinates.slice(-1)[0];
 

@@ -11,6 +11,7 @@ const store = createStore({
         pitch: 0,
         bearing: 0
       },
+      route: null,
       zoomToStep: null
     };
   },
@@ -21,6 +22,9 @@ const store = createStore({
     },
     setZoomToStep(state, step) {
       state.zoomToStep = step;
+    },
+    setRoute(state, route) {
+      state.route = route;
     }
   },
   actions: {
@@ -50,6 +54,9 @@ const store = createStore({
     },
     updateZoomToStep({ commit }, step) {
       commit('setZoomToStep', step);
+    },
+    updateRoute({ commit }, route) {
+      commit('setRoute', route);
     }
   }
 });
