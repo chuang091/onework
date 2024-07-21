@@ -19,7 +19,7 @@ export default {
       container: 'mapboxContainer',
       style: 'mapbox://styles/mapbox/streets-v11',
       center: [121.5654, 25.0330], // 台北的經緯度
-      zoom: 12, // 初始縮放級別
+      zoom: 16, // 初始縮放級別
       pitch: 0, // 初始視角的傾斜度
       bearing: 0 // 初始方向角
     });

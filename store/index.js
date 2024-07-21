@@ -7,7 +7,7 @@ const store = createStore({
         source: null,
         longitude: 121.5654,
         latitude: 25.0330,
-        zoom: 12,
+        zoom: 16,
         pitch: 0,
         bearing: 0
       }

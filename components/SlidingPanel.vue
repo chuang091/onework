@@ -1,84 +1,126 @@
 <template>
-    <transition name="slide">
-      <div v-if="isVisible" class="sliding-panel">
-        <h2>路徑規劃</h2>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label for="pointA">起點 (Point A)</label>
-            <input type="text" id="pointA" v-model="pointA" placeholder="例如：台北101" />
-          </div>
-          <div class="form-group">
-            <label for="pointC">終點 (Point C)</label>
-            <input type="text" id="pointC" v-model="pointC" placeholder="例如：台大醫院" />
-          </div>
-          <button type="submit">提交</button>
-        </form>
-        <div class="results" v-if="routeResult">
-          <h3>路徑結果</h3>
-          <pre>{{ routeResult }}</pre>
+  <transition name="slide">
+    <div v-if="isVisible" class="sliding-panel">
+      <h2>路徑規劃</h2>
+      <form @submit.prevent="handleSubmit">
+        <div class="form-group">
+          <label for="pointA">起點 (Point A)</label>
+          <div id="geocoderA" class="geocoder-container"></div>
         </div>
+        <div class="form-group">
+          <label for="pointC">終點 (Point C)</label>
+          <div id="geocoderC" class="geocoder-container"></div>
+        </div>
+        <button type="submit">提交</button>
+      </form>
+      <div class="results" v-if="routeResult">
+        <h3>路徑結果</h3>
+        <pre>{{ routeResult }}</pre>
       </div>
-    </transition>
-  </template>
-  
-  <script>
-  import mapboxgl from 'mapbox-gl';
-  
-  export default {
-    data() {
-      return {
-        isVisible: false,
-        pointA: '',
-        pointC: '',
-        routeResult: null
-      };
+    </div>
+  </transition>
+</template>
+
+<script>
+import mapboxgl from 'mapbox-gl';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+export default {
+  data() {
+    return {
+      isVisible: false,
+      pointA: '',
+      pointC: '',
+      routeResult: null
+    };
+  },
+  mounted() {
+    this.initializeGeocoders();
+  },
+  methods: {
+    initializeGeocoders() {
+      this.$nextTick(() => {
+        const geocoderA = new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          placeholder: '輸入起點',
+          mapboxgl: mapboxgl
+        });
+        const geocoderC = new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          placeholder: '輸入終點',
+          mapboxgl: mapboxgl
+        });
+
+        geocoderA.on('result', (e) => {
+          this.pointA = `${e.result.center[0]},${e.result.center[1]}`;
+        });
+
+        geocoderC.on('result', (e) => {
+          this.pointC = `${e.result.center[0]},${e.result.center[1]}`;
+        });
+
+        this.$nextTick(() => {
+          const geocoderAContainer = document.getElementById('geocoderA');
+          const geocoderCContainer = document.getElementById('geocoderC');
+
+          if (geocoderAContainer && geocoderCContainer) {
+            geocoderA.addTo(geocoderAContainer);
+            geocoderC.addTo(geocoderCContainer);
+          }
+        });
+      });
     },
-    methods: {
-      async handleSubmit() {
-        try {
-          const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${this.pointA};${this.pointC}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
-          const response = await fetch(directionsServiceUrl);
-          const data = await response.json();
-          this.routeResult = data.routes[0];
-          this.$emit('route-found', data.routes[0]);
-        } catch (error) {
-          console.error('Error fetching directions:', error);
-        }
-      },
-      togglePanel() {
-        this.isVisible = !this.isVisible;
-        this.$emit('toggle', this.isVisible);
+    async handleSubmit() {
+      try {
+        const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${this.pointA};${this.pointC}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+        const response = await fetch(directionsServiceUrl);
+        const data = await response.json();
+        this.routeResult = data.routes[0];
+        this.$emit('route-found', data.routes[0]);
+      } catch (error) {
+        console.error('Error fetching directions:', error);
       }
+    },
+    togglePanel() {
+      this.isVisible = !this.isVisible;
+      if (this.isVisible) {
+        this.initializeGeocoders();
+      }
+      this.$emit('toggle', this.isVisible);
     }
-  };
-  </script>
-  
-  <style>
-  .sliding-panel {
-    width: 30%;
-    height: 100vh;
-    position: fixed;
-    right: 0;
-    top: 0;
-    background: white;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
-    padding: 20px;
-    z-index: 1000;
-    overflow-y: auto;
   }
-  .slide-enter-active,
-  .slide-leave-active {
-    transition: transform 0.3s ease;
-  }
-  .slide-enter,
-  .slide-leave-to {
-    transform: translateX(100%);
-  }
-  .form-group {
-    margin-bottom: 20px;
-  }
-  .results {
-    margin-top: 20px;
-  }
-  </style>
-  
+};
+</script>
+
+<style>
+.sliding-panel {
+  width: 30%;
+  height: 100vh;
+  position: fixed;
+  right: 0;
+  top: 0;
+  background: white;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+.slide-enter,
+.slide-leave-to {
+  transform: translateX(100%);
+}
+.form-group {
+  margin-bottom: 20px;
+}
+.geocoder-container {
+  width: 100%;
+  margin-top: 5px;
+}
+.results {
+  margin-top: 20px;
+}
+</style>
