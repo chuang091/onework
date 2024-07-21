@@ -4,21 +4,26 @@
       <h2>路徑規劃</h2>
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label for="pointA">起點 (Point A)</label>
+          <label for="pointA">起點</label>
           <div id="geocoderA" class="geocoder-container"></div>
         </div>
         <div class="form-group">
-          <label for="pointC">終點 (Point C)</label>
+          <label for="pointC">終點</label>
           <div id="geocoderC" class="geocoder-container"></div>
         </div>
         <button type="submit">提交</button>
       </form>
       <div class="results" v-if="routeResult">
         <h3>路徑結果</h3>
-        <ul v-if="routeResult.legs && routeResult.legs.length > 0 && routeResult.legs[0].steps && routeResult.legs[0].steps.length > 0">
-          <li v-for="(step, index) in routeResult.legs[0].steps" :key="index" @mouseover="highlightStep(step)" @mouseout="resetHighlight" @click="zoomToStep(step)">
-            <strong>{{ index + 1 }}. </strong>{{ step.maneuver.instruction }}
-            <span class="distance">距離：{{ (step.distance / 1000).toFixed(2) }} 公里</span>
+        <ul v-if="routeResult.legs && routeResult.legs.length > 0">
+          <li v-for="(leg, index) in routeResult.legs" :key="index">
+            <strong>{{ getLegDescription(index) }}: </strong>
+            <ul>
+              <li v-for="(step, stepIndex) in leg.legs[0].steps" :key="stepIndex" @mouseover="highlightStep(step)" @mouseout="resetHighlight" @click="zoomToStep(step)">
+                {{ step.maneuver.instruction }}
+                <span class="distance">距離：{{ (step.distance / 1000).toFixed(2) }} 公里</span>
+              </li>
+            </ul>
           </li>
         </ul>
         <h3>總距離: {{ (routeResult.distance / 1000).toFixed(2) }} 公里</h3>
@@ -40,14 +45,18 @@ export default {
       isVisible: false,
       pointA: '',
       pointC: '',
-      routeResult: null
+      youBikeStations: [],
+      routeResult: null,
+      youBikeStart: '',
+      youBikeEnd: ''
     };
   },
   mounted() {
     this.initializeGeocoders();
+    this.fetchYouBikeData();
   },
   methods: {
-    ...mapActions(['updateZoomToStep']),
+    ...mapActions(['updateRoute']),
     initializeGeocoders() {
       this.$nextTick(() => {
         const geocoderA = new MapboxGeocoder({
@@ -80,20 +89,72 @@ export default {
         });
       });
     },
+    async fetchYouBikeData() {
+      try {
+        const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
+        const data = await response.json();
+        this.youBikeStations = data;
+      } catch (error) {
+        console.error('Error fetching YouBike data:', error);
+      }
+    },
     async handleSubmit() {
       try {
-        const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/cycling/${this.pointA};${this.pointC}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
-        const response = await fetch(directionsServiceUrl);
-        const data = await response.json();
-        if (data.routes && data.routes.length > 0) {
-          this.routeResult = data.routes[0];
-          this.$emit('route-found', data.routes[0]);
-        } else {
-          console.error('No routes found');
-        }
+        const nearestRentStation = this.findNearestStation(this.pointA, 'rent');
+        const nearestReturnStation = this.findNearestStation(this.pointC, 'return');
+
+        const walkToBike = await this.getWalkingRoute(this.pointA, `${nearestRentStation.longitude},${nearestRentStation.latitude}`);
+        const bikeRide = await this.getCyclingRoute(`${nearestRentStation.longitude},${nearestRentStation.latitude}`, `${nearestReturnStation.longitude},${nearestReturnStation.latitude}`);
+        const walkToEnd = await this.getWalkingRoute(`${nearestReturnStation.longitude},${nearestReturnStation.latitude}`, this.pointC);
+
+        this.youBikeStart = nearestRentStation.sna.replace('YouBike2.0_', '');
+        this.youBikeEnd = nearestReturnStation.sna.replace('YouBike2.0_', '');
+        
+        this.routeResult = {
+          distance: walkToBike.distance + bikeRide.distance + walkToEnd.distance,
+          duration: walkToBike.duration + bikeRide.duration + walkToEnd.duration,
+          legs: [walkToBike, bikeRide, walkToEnd]
+        };
+
+        this.updateRoute(this.routeResult);
       } catch (error) {
         console.error('Error fetching directions:', error);
       }
+    },
+    async getWalkingRoute(start, end) {
+      const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+      const response = await fetch(directionsServiceUrl);
+      const data = await response.json();
+      return data.routes[0];
+    },
+    async getCyclingRoute(start, end) {
+      const directionsServiceUrl = `https://api.mapbox.com/directions/v5/mapbox/cycling/${start};${end}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+      const response = await fetch(directionsServiceUrl);
+      const data = await response.json();
+      return data.routes[0];
+    },
+    findNearestStation(point, type) {
+      const [lon, lat] = point.split(',').map(parseFloat);
+      let nearestStation = null;
+      let minDistance = Infinity;
+
+      this.youBikeStations.forEach(station => {
+        const stationLon = parseFloat(station.longitude);
+        const stationLat = parseFloat(station.latitude);
+        const distance = Math.sqrt(Math.pow(lon - stationLon, 2) + Math.pow(lat - stationLat, 2));
+
+        if (type === 'rent' && station.available_rent_bikes > 0 && distance < minDistance) {
+          nearestStation = station;
+          minDistance = distance;
+        }
+
+        if (type === 'return' && station.available_return_bikes > 0 && distance < minDistance) {
+          nearestStation = station;
+          minDistance = distance;
+        }
+      });
+
+      return nearestStation;
     },
     togglePanel() {
       this.isVisible = !this.isVisible;
@@ -109,7 +170,19 @@ export default {
       this.$emit('reset-highlight');
     },
     zoomToStep(step) {
-      this.updateZoomToStep(step);
+      this.$store.dispatch('updateZoomToStep', step);
+    },
+    getLegDescription(index) {
+      switch (index) {
+        case 0:
+          return `徒步至最近可借 YouBike 站點：${this.youBikeStart}`;
+        case 1:
+          return `從 ${this.youBikeStart} 騎行至離終點最近可還 YouBike 站點：${this.youBikeEnd}`;
+        case 2:
+          return `從 ${this.youBikeEnd} 徒步至終點`;
+        default:
+          return `第 ${index + 1} 段`;
+      }
     }
   }
 };
@@ -161,5 +234,8 @@ export default {
   display: block;
   font-size: 0.8em;
   color: #555;
+}
+.mapboxgl-ctrl-geocoder .suggestions{
+  position: relative;
 }
 </style>

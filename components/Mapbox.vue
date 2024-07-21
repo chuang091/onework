@@ -11,17 +11,25 @@ export default {
     return {
       map: null,
       markers: [],
-      routeLayer: null,
-      highlightedLayer: null
+      routeLayers: [],
+      highlightedLayer: null,
+      startMarker: null,
+      endMarker: null,
+      youBikeMarkers: []
     };
   },
   computed: {
-    ...mapState(['zoomToStep'])
+    ...mapState(['zoomToStep', 'route'])
   },
   watch: {
     zoomToStep(newStep) {
       if (newStep) {
         this.zoomToStepMethod(newStep);
+      }
+    },
+    route(newRoute) {
+      if (newRoute) {
+        this.drawRoute(newRoute);
       }
     }
   },
@@ -93,9 +101,9 @@ export default {
       try {
         const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
         const data = await response.json();
-        
-        this.markers.forEach(marker => marker.remove());
-        this.markers = [];
+
+        this.youBikeMarkers.forEach(marker => marker.remove());
+        this.youBikeMarkers = [];
 
         data.forEach(station => {
           const lon = parseFloat(station.longitude);
@@ -106,13 +114,13 @@ export default {
           }
 
           if (bounds.contains([lon, lat])) {
-            const marker = new mapboxgl.Marker()
+            const marker = new mapboxgl.Marker({ color: 'blue' })
               .setLngLat([lon, lat])
               .setPopup(new mapboxgl.Popup({ offset: 25 })
                 .setHTML(`<h3>${station.sna}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
               .addTo(this.map);
 
-            this.markers.push(marker);
+            this.youBikeMarkers.push(marker);
           }
         });
       } catch (error) {
@@ -120,43 +128,72 @@ export default {
       }
     },
     drawRoute(route) {
-      if (this.routeLayer) {
-        if (this.map.getLayer('route')) {
-          this.map.removeLayer('route');
-        }
-        if (this.map.getSource('route')) {
-          this.map.removeSource('route');
-        }
+      if (!route || !route.legs) {
+        console.error('Invalid route data:', route);
+        return;
       }
 
-      this.map.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: route.geometry
+      this.routeLayers.forEach(layer => {
+        if (this.map.getLayer(layer)) {
+          this.map.removeLayer(layer);
+        }
+        if (this.map.getSource(layer)) {
+          this.map.removeSource(layer);
         }
       });
+      this.routeLayers = [];
 
-      this.routeLayer = this.map.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#3887be',
-          'line-width': 5,
-          'line-opacity': 0.75
-        }
+      route.legs.forEach((leg, index) => {
+        const layerId = `route-leg-${index}`;
+        const color = leg.weight_name === 'pedestrian' ? '#00ff00' : '#3887be';
+        this.map.addSource(layerId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: leg.geometry
+          }
+        });
+
+        this.map.addLayer({
+          id: layerId,
+          type: 'line',
+          source: layerId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': color,
+            'line-width': 5,
+            'line-opacity': 0.75
+          }
+        });
+
+        this.routeLayers.push(layerId);
       });
 
       const bounds = new mapboxgl.LngLatBounds();
-      route.geometry.coordinates.forEach(coord => {
-        bounds.extend(coord);
+      route.legs.forEach(leg => {
+        leg.geometry.coordinates.forEach(coord => {
+          bounds.extend(coord);
+        });
       });
       this.map.fitBounds(bounds, { padding: 50 });
+
+      const start = route.legs[0].geometry.coordinates[0];
+      const end = route.legs[route.legs.length - 1].geometry.coordinates.slice(-1)[0];
+
+      if (this.startMarker) this.startMarker.remove();
+      this.startMarker = new mapboxgl.Marker({ color: 'green' })
+        .setLngLat(start)
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML('<h3>起點</h3>'))
+        .addTo(this.map);
+
+      if (this.endMarker) this.endMarker.remove();
+      this.endMarker = new mapboxgl.Marker({ color: 'red' })
+        .setLngLat(end)
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML('<h3>終點</h3>'))
+        .addTo(this.map);
 
       this.map.on('mouseenter', 'route', (e) => {
         this.map.getCanvas().style.cursor = 'pointer';
@@ -185,6 +222,11 @@ export default {
         if (this.map.getSource('highlighted-step')) {
           this.map.removeSource('highlighted-step');
         }
+      }
+
+      if (!step || !step.geometry || !step.geometry.coordinates) {
+        console.error('Invalid step data:', step);
+        return;
       }
 
       this.map.addSource('highlighted-step', {
@@ -221,6 +263,11 @@ export default {
       }
     },
     zoomToStepMethod(step) {
+      if (!step || !step.geometry || !step.geometry.coordinates) {
+        console.error('Invalid step data:', step);
+        return;
+      }
+
       const bounds = new mapboxgl.LngLatBounds();
       step.geometry.coordinates.forEach(coord => {
         bounds.extend(coord);
