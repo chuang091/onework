@@ -181,7 +181,7 @@ export default {
 
     this.osmLayer = this.map.addLayer({
       id: 'osm-data',
-      type: 'fill-extrusion', // 使用填充挤出类型
+      type: 'fill-extrusion', 
       source: 'osm-data',
       paint: {
         'fill-extrusion-color': '#FF5733',
