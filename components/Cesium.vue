@@ -8,8 +8,9 @@ export default {
     return {
       previousVisibleFeaturesCount: 0,
       previousBounds: { west: 0, south: 0, east: 0, north: 0 },
-      boundsChangeThreshold: 0.0001, // 設置一個閾值
-      maxFeatures: 5000 // 設置最大特徵數量
+      boundsChangeThreshold: 0.0001, // 设置一个阈值
+      maxFeatures: 5000, // 设置最大特征数量
+      batchTimeout: 100 // 批量加载特征的延迟
     };
   },
   mounted() {
@@ -121,26 +122,19 @@ export default {
         const bottomLeftCartographic = ellipsoid.cartesianToCartographic(bottomLeft);
         const bottomRightCartographic = ellipsoid.cartesianToCartographic(bottomRight);
 
-        // 確保經緯度值不為 NaN
+        // 确保经纬度值不为 NaN
         if (isNaN(topLeftCartographic.longitude) || isNaN(topRightCartographic.longitude) ||
             isNaN(bottomLeftCartographic.longitude) || isNaN(bottomRightCartographic.longitude) ||
             isNaN(topLeftCartographic.latitude) || isNaN(topRightCartographic.latitude) ||
             isNaN(bottomLeftCartographic.latitude) || isNaN(bottomRightCartographic.latitude)) {
-          console.error('Computed cartographic values have NaN components');
-          console.error({
-            topLeftCartographic,
-            topRightCartographic,
-            bottomLeftCartographic,
-            bottomRightCartographic
-          });
           throw new Error('Computed cartographic values have NaN components');
         }
 
         const bounds = {
-          west: parseFloat(Math.min(topLeftCartographic.longitude, bottomLeftCartographic.longitude).toFixed(6)),
-          south: parseFloat(Math.min(bottomLeftCartographic.latitude, bottomRightCartographic.latitude).toFixed(6)),
-          east: parseFloat(Math.max(topRightCartographic.longitude, bottomRightCartographic.longitude).toFixed(6)),
-          north: parseFloat(Math.max(topLeftCartographic.latitude, topRightCartographic.latitude).toFixed(6))
+          west: Math.min(topLeftCartographic.longitude, bottomLeftCartographic.longitude),
+          south: Math.min(bottomLeftCartographic.latitude, bottomRightCartographic.latitude),
+          east: Math.max(topRightCartographic.longitude, bottomRightCartographic.longitude),
+          north: Math.max(topLeftCartographic.latitude, topRightCartographic.latitude)
         };
 
         const boundsChanged = Math.abs(bounds.west - this.previousBounds.west) > this.boundsChangeThreshold ||
@@ -177,7 +171,7 @@ export default {
                   coord[1] <= cesium.Math.toDegrees(bounds.north)
                 ))
               );
-            }
+            } 
             return false;
           })
         };
@@ -201,33 +195,26 @@ export default {
 
         console.log('Visible features:', visibleFeatures);
 
-        try {
-          if (viewer.dataSources.getByName('osm-data').length > 0) {
-            viewer.dataSources.remove(viewer.dataSources.getByName('osm-data')[0]);
-          }
-
-          const geoJsonDataSource = new cesium.GeoJsonDataSource('osm-data');
-          await geoJsonDataSource.load(visibleFeatures);
-          viewer.dataSources.add(geoJsonDataSource);
-
-          geoJsonDataSource.entities.values.forEach(entity => {
-            if (entity) {
-              try {
-                const height = entity.properties['building:levels'] ? entity.properties['building:levels'].getValue() * 3 : 10;
-                if (!isNaN(height)){
-                //console.log("height", height);
-                
-                
-                entity.polygon.material = cesium.Color.ORANGE.withAlpha(0.5);
-                }
-              } catch (error) {
-                console.error('Error processing entity:', error, entity);
-              }
-            }
-          });
-        } catch (error) {
-          console.error('Error processing GeoJSON data:', error);
+        if (viewer.dataSources.getByName('osm-data').length > 0) {
+          viewer.dataSources.remove(viewer.dataSources.getByName('osm-data')[0]);
         }
+
+        const geoJsonDataSource = new cesium.GeoJsonDataSource('osm-data');
+        await geoJsonDataSource.load(visibleFeatures);
+        viewer.dataSources.add(geoJsonDataSource);
+
+        geoJsonDataSource.entities.values.forEach(entity => {
+          if (entity.polygon) {
+            try {
+              const height = entity.properties['building:levels'] ? entity.properties['building:levels'].getValue() * 3 : 10;
+              entity.polygon.extrudedHeight = isNaN(height) ? 0 : height; // 如果高度为 NaN，则设置为 0
+              entity.polygon.material = cesium.Color.ORANGE.withAlpha(0.5);
+              console.log('Processed entity:', entity);
+            } catch (error) {
+              console.error('Error processing entity:', error, entity);
+            }
+          }
+        });
 
       } catch (error) {
         console.error('Error fetching OSM data:', error);
@@ -245,17 +232,11 @@ export default {
       viewer.entities.removeAll();
 
       route.legs.forEach((leg) => {
-        const coordinates = leg.geometry.coordinates.flat().filter(coord => !isNaN(coord));
-        if (coordinates.length === 0) {
-          console.error('Leg contains invalid coordinates:', leg);
-          return;
-        }
-
         const color = leg.weight_name === 'pedestrian' ? cesium.Color.GREEN : cesium.Color.BLUE;
 
         viewer.entities.add({
           polyline: {
-            positions: cesium.Cartesian3.fromDegreesArray(coordinates),
+            positions: cesium.Cartesian3.fromDegreesArray(leg.geometry.coordinates.flat()),
             width: 5,
             material: color
           }
@@ -265,46 +246,36 @@ export default {
       const start = route.legs[0].geometry.coordinates[0];
       const end = route.legs[route.legs.length - 1].geometry.coordinates.slice(-1)[0];
 
-      if (!isNaN(start[0]) && !isNaN(start[1])) {
-        viewer.entities.add({
-          position: cesium.Cartesian3.fromDegrees(start[0], start[1]),
-          point: {
-            pixelSize: 10,
-            color: cesium.Color.GREEN
-          },
-          label: {
-            text: '起點',
-            verticalOrigin: cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new cesium.Cartesian2(0, -10)
-          }
-        });
-      }
+      viewer.entities.add({
+        position: cesium.Cartesian3.fromDegrees(start[0], start[1]),
+        point: {
+          pixelSize: 10,
+          color: cesium.Color.GREEN
+        },
+        label: {
+          text: '起點',
+          verticalOrigin: cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new cesium.Cartesian2(0, -10)
+        }
+      });
 
-      if (!isNaN(end[0]) && !isNaN(end[1])) {
-        viewer.entities.add({
-          position: cesium.Cartesian3.fromDegrees(end[0], end[1]),
-          point: {
-            pixelSize: 10,
-            color: cesium.Color.RED
-          },
-          label: {
-            text: '終點',
-            verticalOrigin: cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new cesium.Cartesian2(0, -10)
-          }
-        });
-      }
+      viewer.entities.add({
+        position: cesium.Cartesian3.fromDegrees(end[0], end[1]),
+        point: {
+          pixelSize: 10,
+          color: cesium.Color.RED
+        },
+        label: {
+          text: '終點',
+          verticalOrigin: cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new cesium.Cartesian2(0, -10)
+        }
+      });
 
-      const validCoordinates = route.legs.flatMap((leg) =>
-        leg.geometry.coordinates.filter((coord) => !isNaN(coord[0]) && !isNaN(coord[1])).map((coord) =>
-          cesium.Cartesian3.fromDegrees(coord[0], coord[1])
-        )
+      const boundingSphere = cesium.BoundingSphere.fromPoints(
+        route.legs.flatMap((leg) => leg.geometry.coordinates.map((coord) => cesium.Cartesian3.fromDegrees(coord[0], coord[1])))
       );
-
-      if (validCoordinates.length > 0) {
-        const boundingSphere = cesium.BoundingSphere.fromPoints(validCoordinates);
-        viewer.camera.flyToBoundingSphere(boundingSphere, { duration: 0 });
-      }
+      viewer.camera.flyToBoundingSphere(boundingSphere, { duration: 0 });
     }
   }
 };
