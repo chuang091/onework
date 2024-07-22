@@ -16,7 +16,9 @@ export default {
       startMarker: null,
       endMarker: null,
       youBikeMarkers: [],
-      osmLayer: null
+      osmLayer: null,
+      previousVisibleFeaturesCount: 0,
+      previousBounds: null
     };
   },
   computed: {
@@ -47,20 +49,7 @@ export default {
     });
 
     this.map.on('load', () => {
-      this.map.addLayer({
-        id: '3d-buildings',
-        source: 'composite',
-        'source-layer': 'building',
-        filter: ['==', 'extrude', 'true'],
-        type: 'fill-extrusion',
-        minzoom: 15,
-        paint: {
-          'fill-extrusion-color': '#aaa',
-          'fill-extrusion-height': ['get', 'height'],
-          'fill-extrusion-base': ['get', 'min_height'],
-          'fill-extrusion-opacity': 0.6
-        }
-      });
+      
 
       this.loadVisibleYouBikeStations();
       this.loadVisibleOSMData();
@@ -135,7 +124,7 @@ export default {
           }
 
           if (bounds.contains([lon, lat])) {
-            const marker = new mapboxgl.Marker({ color: 'blue' })
+            const marker = new mapboxgl.Marker({ color: 'lightblue' })
               .setLngLat([lon, lat])
               .setPopup(new mapboxgl.Popup({ offset: 25 })
                 .setHTML(`<h3>${station.sna}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
@@ -169,39 +158,60 @@ export default {
           features: data.features.filter(feature => {
             if (feature.geometry.type === 'Polygon') {
               return feature.geometry.coordinates.some(polygon => 
-                polygon.some(coord => bounds.contains(coord))
+                polygon.some(coord => 
+                  !isNaN(coord[0]) && 
+                  !isNaN(coord[1]) && 
+                  bounds.contains(coord)
+                )
               );
-            } else if (feature.geometry.type === 'Point') {
-              const [lon, lat] = feature.geometry.coordinates;
-              return bounds.contains([lon, lat]);
             }
             return false;
           })
         };
+
+        if (visibleFeatures.features.length > 5000) {
+          console.log('Too many visible features to render:', visibleFeatures.features.length);
+          return;
+        }
+
+        if (visibleFeatures.features.length === this.previousVisibleFeaturesCount && this.boundsAreEqual(this.previousBounds, bounds)) {
+          console.log('Visible features count has not changed.');
+          return;
+        }
+
+        this.previousVisibleFeaturesCount = visibleFeatures.features.length;
+        this.previousBounds = bounds;
+
+        console.log('Visible features:', visibleFeatures);
 
         this.map.addSource('osm-data', {
           type: 'geojson',
           data: visibleFeatures
         });
 
-        this.osmLayer = this.map.addLayer({
-          id: 'osm-data',
-          type: 'fill-extrusion', 
-          source: 'osm-data',
-          paint: {
-            'fill-extrusion-color': '#FF5733',
-            'fill-extrusion-height': [
-              'interpolate', ['linear'], ['get', 'building:levels'], 
-              1, 20, 
-              ['*', ['coalesce', ['get', 'building:levels'], 1], 3] // 使用coalesce来处理NaN
-            ],
-            'fill-extrusion-base': 0,
-            'fill-extrusion-opacity': 0.6
-          }
-        });
+        this.map.addLayer({
+        id: 'buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 14,
+        paint: {
+          'fill-extrusion-color': '#aaa',
+          'fill-extrusion-height': ['coalesce', ['get', 'height'], 20],
+          'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+          'fill-extrusion-opacity': 0.6
+        }
+      });
       } catch (error) {
         console.error('Error fetching OSM data:', error);
       }
+    },
+    boundsAreEqual(bounds1, bounds2) {
+      return bounds1.getWest() === bounds2.getWest() &&
+             bounds1.getSouth() === bounds2.getSouth() &&
+             bounds1.getEast() === bounds2.getEast() &&
+             bounds1.getNorth() === bounds2.getNorth();
     },
     drawRoute(route) {
       if (!route || !route.legs) {
