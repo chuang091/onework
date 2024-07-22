@@ -189,6 +189,16 @@ export default {
           data: visibleFeatures
         });
 
+        if (this.map.getLayer('buildings')) {
+          this.map.removeLayer('buildings');
+        }
+        if (this.map.getLayer('buildings')) {
+          this.map.removeLayer('buildings');
+        }
+        if (this.map.getSource('buildings')) {
+          this.map.removeSource('buildings');
+        }
+
         this.map.addLayer({
         id: 'buildings',
         source: 'composite',
