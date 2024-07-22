@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <button @click="togglePanel" class="toggle-button">切換面板</button>
+    <button @click="togglePanel" class="toggle-button">路徑規劃</button>
     <div class="container">
       <div class="left" :class="{ expanded: isPanelVisible }">
         <Cesium />

@@ -15,7 +15,10 @@ export default {
       highlightedLayer: null,
       startMarker: null,
       endMarker: null,
-      youBikeMarkers: []
+      youBikeMarkers: [],
+      osmLayer: null,
+      previousVisibleFeaturesCount: 0,
+      previousBounds: null
     };
   },
   computed: {
@@ -40,8 +43,16 @@ export default {
       style: 'mapbox://styles/mapbox/streets-v11',
       center: [121.5654, 25.0330],
       zoom: 16,
-      pitch: 0,
-      bearing: 0
+      pitch: 45,
+      bearing: -17.6,
+      antialias: true
+    });
+
+    this.map.on('load', () => {
+      
+
+      this.loadVisibleYouBikeStations();
+      this.loadVisibleOSMData();
     });
 
     let isUpdatingFromMapbox = false;
@@ -50,6 +61,7 @@ export default {
 
     this.map.on('moveend', () => {
       this.loadVisibleYouBikeStations();
+      this.loadVisibleOSMData();
     });
 
     this.map.on('move', () => {
@@ -92,8 +104,6 @@ export default {
       },
       { immediate: true }
     );
-
-    this.loadVisibleYouBikeStations();
   },
   methods: {
     async loadVisibleYouBikeStations() {
@@ -101,7 +111,7 @@ export default {
       try {
         const response = await fetch('https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json');
         const data = await response.json();
-
+        
         this.youBikeMarkers.forEach(marker => marker.remove());
         this.youBikeMarkers = [];
 
@@ -114,7 +124,7 @@ export default {
           }
 
           if (bounds.contains([lon, lat])) {
-            const marker = new mapboxgl.Marker({ color: 'blue' })
+            const marker = new mapboxgl.Marker({ color: 'lightblue' })
               .setLngLat([lon, lat])
               .setPopup(new mapboxgl.Popup({ offset: 25 })
                 .setHTML(`<h3>${station.sna}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
@@ -126,6 +136,82 @@ export default {
       } catch (error) {
         console.error('Error fetching YouBike data:', error);
       }
+    },
+    async loadVisibleOSMData() {
+      const bounds = this.map.getBounds();
+      try {
+        const response = await fetch('/osm-data.geojson'); // 使用相对路径从 static 文件夹加载资源
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+
+        if (this.map.getLayer('osm-data')) {
+          this.map.removeLayer('osm-data');
+        }
+        if (this.map.getSource('osm-data')) {
+          this.map.removeSource('osm-data');
+        }
+
+        const visibleFeatures = {
+          type: 'FeatureCollection',
+          features: data.features.filter(feature => {
+            if (feature.geometry.type === 'Polygon') {
+              return feature.geometry.coordinates.some(polygon => 
+                polygon.some(coord => 
+                  !isNaN(coord[0]) && 
+                  !isNaN(coord[1]) && 
+                  bounds.contains(coord)
+                )
+              );
+            }
+            return false;
+          })
+        };
+
+        if (visibleFeatures.features.length > 5000) {
+          console.log('Too many visible features to render:', visibleFeatures.features.length);
+          return;
+        }
+
+        if (visibleFeatures.features.length === this.previousVisibleFeaturesCount && this.boundsAreEqual(this.previousBounds, bounds)) {
+          console.log('Visible features count has not changed.');
+          return;
+        }
+
+        this.previousVisibleFeaturesCount = visibleFeatures.features.length;
+        this.previousBounds = bounds;
+
+        console.log('Visible features:', visibleFeatures);
+
+        this.map.addSource('osm-data', {
+          type: 'geojson',
+          data: visibleFeatures
+        });
+
+        this.map.addLayer({
+        id: 'buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 14,
+        paint: {
+          'fill-extrusion-color': '#aaa',
+          'fill-extrusion-height': ['coalesce', ['get', 'height'], 20],
+          'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+          'fill-extrusion-opacity': 0.6
+        }
+      });
+      } catch (error) {
+        console.error('Error fetching OSM data:', error);
+      }
+    },
+    boundsAreEqual(bounds1, bounds2) {
+      return bounds1.getWest() === bounds2.getWest() &&
+             bounds1.getSouth() === bounds2.getSouth() &&
+             bounds1.getEast() === bounds2.getEast() &&
+             bounds1.getNorth() === bounds2.getNorth();
     },
     drawRoute(route) {
       if (!route || !route.legs) {
