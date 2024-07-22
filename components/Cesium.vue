@@ -83,7 +83,10 @@ export default {
     });
 
     this.viewer.scene.camera.moveEnd.addEventListener(() => {
-      this.loadVisibleOSMData();
+      clearTimeout(moveTimeout);
+      moveTimeout = setTimeout(() => {
+        this.loadVisibleOSMData();
+      }, 500);
     });
   },
   methods: {
@@ -149,6 +152,11 @@ export default {
             return false;
           })
         };
+
+        if (visibleFeatures.features.length === 0) {
+          console.log('No visible features to render.');
+          return;
+        }
 
         console.log('Visible features:', visibleFeatures);
 
