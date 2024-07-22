@@ -8,7 +8,7 @@ export default {
     return {
       previousVisibleFeaturesCount: 0,
       previousBounds: { west: 0, south: 0, east: 0, north: 0 },
-      boundsChangeThreshold: 0.0001, // 设置一个阈值
+      boundsChangeThreshold: 0.0000, // 设置一个阈值
       maxFeatures: 5000, // 设置最大特征数量
       batchTimeout: 100 // 批量加载特征的延迟
     };
@@ -209,7 +209,7 @@ export default {
               const height = entity.properties['building:levels'] ? entity.properties['building:levels'].getValue() * 3 : 10;
               entity.polygon.extrudedHeight = isNaN(height) ? 0 : height; // 如果高度为 NaN，则设置为 0
               entity.polygon.material = cesium.Color.ORANGE.withAlpha(0.5);
-              console.log('Processed entity:', entity);
+              //console.log('Processed entity:', entity);
             } catch (error) {
               console.error('Error processing entity:', error, entity);
             }

@@ -20,12 +20,17 @@ export default {
     };
   },
   computed: {
-    ...mapState(['zoomToStep'])
+    ...mapState(['zoomToStep', 'route'])
   },
   watch: {
     zoomToStep(newStep) {
       if (newStep) {
         this.zoomToStepMethod(newStep);
+      }
+    },
+    route(newRoute) {
+      if (newRoute) {
+        this.drawRoute(newRoute);
       }
     }
   },
@@ -144,61 +149,60 @@ export default {
       }
     },
     async loadVisibleOSMData() {
-  const bounds = this.map.getBounds();
-  try {
-    const response = await fetch('/osm-data.geojson'); // 使用相对路径从 static 文件夹加载资源
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    const data = await response.json();
-
-    if (this.map.getLayer('osm-data')) {
-      this.map.removeLayer('osm-data');
-    }
-    if (this.map.getSource('osm-data')) {
-      this.map.removeSource('osm-data');
-    }
-
-    const visibleFeatures = {
-      type: 'FeatureCollection',
-      features: data.features.filter(feature => {
-        if (feature.geometry.type === 'Polygon') {
-          return feature.geometry.coordinates.some(polygon => 
-            polygon.some(coord => bounds.contains(coord))
-          );
-        } else if (feature.geometry.type === 'Point') {
-          const [lon, lat] = feature.geometry.coordinates;
-          return bounds.contains([lon, lat]);
+      const bounds = this.map.getBounds();
+      try {
+        const response = await fetch('/osm-data.geojson'); // 使用相对路径从 static 文件夹加载资源
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
-        return false;
-      })
-    };
+        const data = await response.json();
 
-    this.map.addSource('osm-data', {
-      type: 'geojson',
-      data: visibleFeatures
-    });
+        if (this.map.getLayer('osm-data')) {
+          this.map.removeLayer('osm-data');
+        }
+        if (this.map.getSource('osm-data')) {
+          this.map.removeSource('osm-data');
+        }
 
-    this.osmLayer = this.map.addLayer({
-      id: 'osm-data',
-      type: 'fill-extrusion', 
-      source: 'osm-data',
-      paint: {
-        'fill-extrusion-color': '#FF5733',
-        'fill-extrusion-height': [
-          'interpolate', ['linear'], ['get', 'building:levels'], 
-          1, 20, 
-          ['*', ['get', 'building:levels'], 3]
-        ],
-        'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.6
+        const visibleFeatures = {
+          type: 'FeatureCollection',
+          features: data.features.filter(feature => {
+            if (feature.geometry.type === 'Polygon') {
+              return feature.geometry.coordinates.some(polygon => 
+                polygon.some(coord => bounds.contains(coord))
+              );
+            } else if (feature.geometry.type === 'Point') {
+              const [lon, lat] = feature.geometry.coordinates;
+              return bounds.contains([lon, lat]);
+            }
+            return false;
+          })
+        };
+
+        this.map.addSource('osm-data', {
+          type: 'geojson',
+          data: visibleFeatures
+        });
+
+        this.osmLayer = this.map.addLayer({
+          id: 'osm-data',
+          type: 'fill-extrusion', 
+          source: 'osm-data',
+          paint: {
+            'fill-extrusion-color': '#FF5733',
+            'fill-extrusion-height': [
+              'interpolate', ['linear'], ['get', 'building:levels'], 
+              1, 20, 
+              ['*', ['coalesce', ['get', 'building:levels'], 1], 3] // 使用coalesce来处理NaN
+            ],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 0.6
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching OSM data:', error);
       }
-    });
-  } catch (error) {
-    console.error('Error fetching OSM data:', error);
-  }
-}
-,
+    },
     drawRoute(route) {
       if (!route || !route.legs) {
         console.error('Invalid route data:', route);
