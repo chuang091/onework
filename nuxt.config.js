@@ -46,7 +46,7 @@ export default {
 
   // 公共運行時配置
   publicRuntimeConfig: {
-    baseURL: "onework"
+    baseURL: "/onework"
   },
 
   // Nuxt 兼容性日期
