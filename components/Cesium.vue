@@ -151,7 +151,7 @@ export default {
 
         console.log('Computed bounds:', bounds);
 
-        const response = await fetch('/osm-data.geojson');
+        const response = await fetch('/onework/osm-data.geojson');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
