@@ -46,7 +46,7 @@ export default {
 
   // 公共運行時配置
   publicRuntimeConfig: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000'
+    baseURL: "onework"
   },
 
   // Nuxt 兼容性日期
