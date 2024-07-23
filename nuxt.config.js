@@ -11,7 +11,7 @@ export default {
   ],
 
   // Nuxt 模式配置
-  mode: 'universal',
+  ssr: false, // 使用無服務器端渲染模式
 
   // 頁面頭部設置
   head: {
@@ -43,9 +43,14 @@ export default {
     // 你可以在這裡擴展 webpack 配置
     extend(config, ctx) {}
   },
+
+  // 公共運行時配置
   publicRuntimeConfig: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000'
   },
 
-  compatibilityDate: '2024-07-21'
+  // Nuxt 兼容性日期
+  compatibility: {
+    date: '2024-07-21'
+  }
 };
