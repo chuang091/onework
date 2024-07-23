@@ -14,9 +14,9 @@
 </template>
 
 <script>
-import Cesium from 'Cesium.vue';
-import Mapbox from 'Mapbox.vue';
-import SlidingPanel from 'SlidingPanel.vue';
+import Cesium from './components/Cesium.vue';
+import Mapbox from './components/Mapbox.vue';
+import SlidingPanel from './components/SlidingPanel.vue';
 
 export default {
   components: {
