@@ -9,6 +9,9 @@ export default {
     '~/plugins/cesium.js',
     { src: '~/plugins/vuex.js', mode: 'client' }
   ],
+  app: {
+    baseURL: "/nuxt3-vuetify-cesium"
+  },
 
   // Nuxt 模式配置
   ssr: false, // 使用無服務器端渲染模式
