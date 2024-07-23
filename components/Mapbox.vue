@@ -43,8 +43,8 @@ export default {
       style: 'mapbox://styles/mapbox/streets-v11',
       center: [121.5654, 25.0330],
       zoom: 16,
-      pitch: 45,
-      bearing: -17.6,
+      pitch: 0,
+      bearing: 0,
       antialias: true
     });
 
@@ -127,9 +127,8 @@ export default {
             const marker = new mapboxgl.Marker({ color: 'lightblue' })
               .setLngLat([lon, lat])
               .setPopup(new mapboxgl.Popup({ offset: 25 })
-                .setHTML(`<h3>${station.sna}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
+              .setHTML(`<h3>${station.sna.replace('YouBike2.0_', '')}</h3><p>可借：${station.available_rent_bikes} / 可還：${station.available_return_bikes}</p>`))
               .addTo(this.map);
-
             this.youBikeMarkers.push(marker);
           }
         });
@@ -140,7 +139,7 @@ export default {
     async loadVisibleOSMData() {
       const bounds = this.map.getBounds();
       try {
-        const response = await fetch('/osm-data.geojson'); // 使用相对路径从 static 文件夹加载资源
+        const response = await fetch('/osm-data.geojson');
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
@@ -188,6 +187,16 @@ export default {
           type: 'geojson',
           data: visibleFeatures
         });
+
+        if (this.map.getLayer('buildings')) {
+          this.map.removeLayer('buildings');
+        }
+        if (this.map.getLayer('buildings')) {
+          this.map.removeLayer('buildings');
+        }
+        if (this.map.getSource('buildings')) {
+          this.map.removeSource('buildings');
+        }
 
         this.map.addLayer({
         id: 'buildings',
