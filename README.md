@@ -1,5 +1,7 @@
 # Cesium and Mapbox with Nuxt
 
+[![Change Language](https://img.shields.io/badge/Language-%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-blue)](READMEzh.md)
+
 ## Introduction
 
 This is a map application based on Mapbox and Cesium, offering features like route planning, step zoom-in view, dual-view, and OSM data chunk loading.
