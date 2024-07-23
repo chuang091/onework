@@ -9,12 +9,14 @@ export default {
     '~/plugins/cesium.js',
     { src: '~/plugins/vuex.js', mode: 'client' }
   ],
+
   app: {
     baseURL: "/onework"
   },
 
   // Nuxt 模式配置
-  ssr: false, // 使用無服務器端渲染模式
+  // 使用無服務器端渲染模式
+  ssr: false,
 
   // 頁面頭部設置
   head: {
@@ -58,5 +60,7 @@ export default {
 
   generate: {
     dir: 'dist'
-  }
+  },
+
+  compatibilityDate: '2024-07-23'
 };
