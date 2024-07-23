@@ -44,10 +44,6 @@ export default {
     extend(config, ctx) {}
   },
 
-  // 公共運行時配置
-  publicRuntimeConfig: {
-    baseURL: "/onework"
-  },
   router: {
     base: '/onework/'
   },
@@ -55,5 +51,9 @@ export default {
   // Nuxt 兼容性日期
   compatibility: {
     date: '2024-07-21'
+  },
+
+  generate: {
+    dir: 'dist'
   }
 };
