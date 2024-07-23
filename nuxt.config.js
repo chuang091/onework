@@ -48,6 +48,9 @@ export default {
   publicRuntimeConfig: {
     baseURL: "/onework"
   },
+  router: {
+    base: '/onework/'
+  },
 
   // Nuxt 兼容性日期
   compatibility: {
