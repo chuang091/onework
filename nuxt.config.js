@@ -52,15 +52,5 @@ export default {
   // Nuxt 兼容性日期
   compatibility: {
     date: '2024-07-21'
-  },
-
-  // 自定義路徑配置，確保資源正確加載
-  router: {
-    base: process.env.ROUTER_BASE || '/'
-  },
-
-  // Nitro 配置
-  nitro: {
-    preset: 'static' // 使用靜態生成模式
   }
 };
