@@ -10,7 +10,7 @@ export default {
     { src: '~/plugins/vuex.js', mode: 'client' }
   ],
   app: {
-    baseURL: "/nuxt3-vuetify-cesium"
+    baseURL: "/onework"
   },
 
   // Nuxt 模式配置
